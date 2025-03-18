@@ -82,7 +82,7 @@
   };
 
   window.addEventListener("keydown", function (ev) {
-    if (!jetzt.isOpen() && ev.altKey && ev.keyCode === 83) {
+    if (!jetzt.isOpen() && ev.ctrlKey && ev.keyCode === 89) {
       ev.preventDefault();
       jetzt.select();
     }
