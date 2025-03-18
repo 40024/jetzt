@@ -1,3 +1,6 @@
+
+// Modified by https://github.com/40024
+
 /*
    Licensed under the Apache License v2.0.
 
@@ -69,11 +72,11 @@
     config_version: CONFIG_VERSION,
     target_wpm: 400,
     scale: 1,
-    dark: false,
+    dark: true,
     selected_theme: 0,
     show_message: false,
     strip_citation: false,
-    selection_color: "#FF0000",
+    selection_color: "#00FF00",
     modifiers: DEFAULT_MODIFIERS,
     font_family: "Menlo, Monaco, Consolas, monospace",
     font_weight: "normal",
