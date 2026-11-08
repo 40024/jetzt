@@ -91,7 +91,7 @@
       this.applyTheme(config.getSelectedTheme());
 
       this.setScale(config("scale"));
-      this.setWPM(config("target_wpm"));
+      this.setWPM(config.getTargetWPM());
       this.setFont(config("font_family"));
       this.setFontWeight(config("font_weight"));
 

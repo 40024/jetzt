@@ -8,7 +8,8 @@
 (function (window) {
 
   var jetzt  = window.jetzt
-    , H      = jetzt.helpers;
+    , H      = jetzt.helpers
+    , config = jetzt.config;
 
   function on (event, cb) {
     window.addEventListener(event, cb);
@@ -18,12 +19,44 @@
     window.removeEventListener(event, cb);
   }
 
+  function caretAt (x, y) {
+    if (document.caretRangeFromPoint) {
+      var range = document.caretRangeFromPoint(x, y);
+      return range && { node: range.startContainer, offset: range.startOffset };
+    } else if (document.caretPositionFromPoint) {
+      var pos = document.caretPositionFromPoint(x, y);
+      return pos && { node: pos.offsetNode, offset: pos.offset };
+    }
+    return null;
+  }
+
+  // index where the sentence containing offset begins
+  function sentenceStart (text, offset) {
+    var re = /[.?!…]["'”’»)]*\s+/g
+      , start = 0
+      , match;
+    while ((match = re.exec(text)) && match.index + match[0].length <= offset) {
+      start = match.index + match[0].length;
+    }
+    return start;
+  }
+
+  // index where the sentence containing offset ends
+  function sentenceEnd (text, offset) {
+    var re = /[.?!…]["'”’»)]*(?=\s|$)/g;
+    re.lastIndex = offset;
+    var match = re.exec(text);
+    return match ? match.index + match[0].length : text.length;
+  }
+
   /**
    * Begin interactive dom node selection.
    */
   function selectMode () {
     var selection = [];
     var previousElement = null;
+    var pointer = null;
+    var rectOverlays = [];
 
     var showSelection = function () {
 
@@ -36,10 +69,55 @@
       }
     };
 
-    var setSelection = function (sel) {
+    var clearRects = function () {
+      rectOverlays.forEach(function (el) { el.remove(); });
+      rectOverlays = [];
+    };
+
+    var drawRects = function (rects) {
+      for (var i = 0; i < rects.length; i++) {
+        var rect = rects[i]
+          , overlay = H.div("sr-overlay");
+        overlay.style.top = (H.getScrollTop() + rect.top) + "px";
+        overlay.style.left = (H.getScrollLeft() + rect.left) + "px";
+        overlay.style.width = rect.width + "px";
+        overlay.style.height = rect.height + "px";
+        overlay.style.backgroundColor = config("selection_color");
+        document.body.appendChild(overlay);
+        rectOverlays.push(overlay);
+      }
+    };
+
+    var sentenceRects = function (x, y) {
+      var caret = caretAt(x, y);
+      if (!caret || caret.node.nodeType !== 3) return null;
+
+      var inSelection = selection.some(function (el) {
+        return el.contains(caret.node);
+      });
+      if (!inSelection) return null;
+
+      var range = document.createRange();
+      range.setStart(caret.node, sentenceStart(caret.node.data, caret.offset));
+      range.setEnd(caret.node, sentenceEnd(caret.node.data, caret.offset));
+      return range.getClientRects();
+    };
+
+    var highlight = function () {
       jetzt.view.removeAllOverlays();
+      clearRects();
+
+      var rects = pointer && sentenceRects(pointer.x, pointer.y);
+      if (rects && rects.length > 0) {
+        drawRects(rects);
+      } else {
+        showSelection();
+      }
+    };
+
+    var setSelection = function (sel) {
       selection = sel;
-      showSelection();
+      highlight();
     };
 
     var validParents = {
@@ -102,6 +180,7 @@
 
     var stop = function () {
       jetzt.view.removeAllOverlays();
+      clearRects();
       off("mouseover", mouseoverHandler);
       off("mousemove", moveHandler);
       off("keydown", keydownHandler);
@@ -111,6 +190,7 @@
     };
 
     var mouseoverHandler = function (ev) {
+      pointer = { x: ev.clientX, y: ev.clientY };
       previousElement && H.removeClass(previousElement, "sr-pointer");
 
       H.addClass(ev.target, "sr-pointer");
@@ -126,12 +206,35 @@
 
     var clickHandler = function (ev) {
       stop();
-      jetzt.init(jetzt.parse.dom(selection));
+      jetzt.init(jetzt.parse.dom(startingNodes(ev.clientX, ev.clientY) || selection));
+    };
+
+    var startingNodes = function (x, y) {
+      var caret = caretAt(x, y);
+      if (!caret || caret.node.nodeType !== 3) return null;
+
+      var idx = -1;
+      for (var i = 0; i < selection.length; i++) {
+        if (selection[i].contains(caret.node)) {
+          idx = i;
+          break;
+        }
+      }
+      if (idx < 0) return null;
+
+      var range = document.createRange();
+      range.setStart(caret.node, sentenceStart(caret.node.data, caret.offset));
+      range.setEnd(selection[idx], selection[idx].childNodes.length);
+
+      var partial = selection[idx].cloneNode(false);
+      partial.appendChild(range.cloneContents());
+      return [partial].concat(selection.slice(idx + 1));
     };
 
     var moveHandler = function (ev) {
-      mouseoverHandler(ev);
-      off("mousemove", moveHandler);
+      if (!pointer) mouseoverHandler(ev);
+      pointer = { x: ev.clientX, y: ev.clientY };
+      highlight();
     };
 
     var keydownHandler = function (ev) {

@@ -11,7 +11,7 @@
     , config = jetzt.config;
 
   function calculateDelay(instr) {
-    var interval = 60 * 1000 / config("target_wpm");
+    var interval = 60 * 1000 / config.getTargetWPM();
     if (instr.modifier !== "normal") {
       return interval * config(["modifiers", instr.modifier]);
     } else {

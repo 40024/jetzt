@@ -89,6 +89,7 @@
   // This is where we store the options for the current instance of jetzt.
   // The identity of the object never changes.
   var options = H.clone(DEFAULT_OPTIONS);
+  var speedBoost = false;
 
   // list of folks to notify of changes
   var listeners = [];
@@ -286,6 +287,15 @@
     options.target_wpm = H.clamp(100, options.target_wpm + diff, 1500);
     announce();
     persist();
+  };
+
+  config.getTargetWPM = function () {
+    return Math.round(options.target_wpm * (speedBoost ? 1.5 : 1));
+  };
+
+  config.toggleSpeedBoost = function () {
+    speedBoost = !speedBoost;
+    announce();
   };
 
   config.adjustScale = function (diff) {

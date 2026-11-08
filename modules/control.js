@@ -13,7 +13,8 @@
   var jetzt = window.jetzt
     , H = jetzt.helpers
     , config = jetzt.config
-    , control = {};
+    , control = {}
+    , speedToggleDown = false;
 
   jetzt.control = control;
 
@@ -83,6 +84,31 @@
 
     });
   };
+
+  // Handle the speed toggle in the capture phase so it wins over regular
+  // key handlers registered by the page or other extensions.
+  function isSpeedToggleKey (ev) {
+    return ev.keyCode === 81 || (ev.key && ev.key.toLowerCase() === "q");
+  }
+
+  window.addEventListener("keydown", function (ev) {
+    if (jetzt.isOpen() && !ev.ctrlKey && !ev.metaKey && isSpeedToggleKey(ev)) {
+      killEvent(ev);
+      if (!ev.repeat || !speedToggleDown) config.toggleSpeedBoost();
+      speedToggleDown = true;
+    }
+  }, true);
+
+  // Some page/extension handlers swallow keydown; keyup can still reach us.
+  window.addEventListener("keyup", function (ev) {
+    if (isSpeedToggleKey(ev)) {
+      if (jetzt.isOpen() && !ev.ctrlKey && !ev.metaKey && !speedToggleDown) {
+        killEvent(ev);
+        config.toggleSpeedBoost();
+      }
+      speedToggleDown = false;
+    }
+  }, true);
 
   window.addEventListener("keydown", function (ev) {
     if (!jetzt.isOpen() && ev.ctrlKey && ev.keyCode === 89) {
